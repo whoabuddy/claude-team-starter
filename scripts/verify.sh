@@ -20,6 +20,7 @@ command -v node &>/dev/null && ok "node $(node --version)" || fail "node"
 command -v bun &>/dev/null && ok "bun $(bun --version)" || fail "bun"
 command -v claude &>/dev/null && ok "claude $(claude --version 2>/dev/null)" || fail "claude"
 command -v gh &>/dev/null && ok "gh $(gh --version | head -1 | cut -d' ' -f3)" || fail "gh"
+command -v cloudflared &>/dev/null && ok "cloudflared" || warn "cloudflared (optional)"
 command -v tmux &>/dev/null && ok "tmux" || fail "tmux"
 
 echo ""
@@ -48,5 +49,10 @@ if gh auth status &>/dev/null 2>&1; then
 else
     fail "GitHub: run 'gh auth login'"
 fi
+
+echo ""
+echo "=== Repos ==="
+[ -d "$HOME/dev/whoabuddy/claude-knowledge" ] && ok "claude-knowledge" || fail "claude-knowledge"
+[ -d "$HOME/dev/whoabuddy/claude-rpg" ] && ok "claude-rpg" || fail "claude-rpg"
 
 echo ""

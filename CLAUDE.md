@@ -1,50 +1,44 @@
 # Claude Team Starter
 
-Replicate a working Claude Code development environment for a team.
+Replicate a Claude Code development environment for a team of 5.
 
 ## Phase 1: Team of 5 (Current)
 
-VirtualBox VMs running Ubuntu Server with identical setups. Users bring their own Anthropic accounts and configure via guided setup.
+VirtualBox VMs running Ubuntu Server with identical setups.
+
+### Flow
+
+1. Admin: Create base Ubuntu Server VM
+2. Admin: Clone VM for each user
+3. Admin: Run `sudo ./scripts/pre-setup.sh <username>` on each
+4. User: SSH in, run `~/post-setup.sh`
+5. User: Optionally run `~/setup-tunnel.sh` for web access
 
 ### Scripts
 
-- `scripts/pre-setup.sh` - Admin runs before user connects (installs packages)
-- `scripts/post-setup.sh` - User runs after connecting (account configuration)
+- `scripts/pre-setup.sh` - Installs everything (idempotent)
+- `scripts/post-setup.sh` - Account configuration only
+- `scripts/setup-tunnel.sh` - Cloudflare tunnel with GitHub username subdomain
 - `scripts/verify.sh` - Quick status check
 
-### Templates
-
-- `templates/.claude/CLAUDE.md` - Preloaded context for Claude Code
-- `templates/.claude/settings.json` - Default settings
-
-### Installed Packages
+### Installed by pre-setup
 
 - build-essential, cmake, git, tmux, jq
-- Node.js LTS via nvm
-- Bun
+- Node.js (latest via nvm), Bun
 - Claude Code CLI
-- cloudflared
-- GitHub CLI (installed via post-setup)
+- GitHub CLI, cloudflared
+- Clones: claude-knowledge, claude-rpg
 
-### User Configuration Required
+### User completes in post-setup
 
-1. Claude Code login (Anthropic account)
-2. Git name/email
-3. SSH key for GitHub
-4. GitHub CLI auth
-5. Cloudflare tunnel token (optional)
+- Claude Code login
+- Git name/email
+- SSH key
+- GitHub CLI auth
 
 ## Phase 2: Scale + Wallet Integration (Future)
 
-- Docker-based deployment for easier scaling
+- Docker-based deployment
 - Stacks wallet authentication (SIWS)
 - Agent wallet linked to user wallet via smart contract
 - Gamification: keep agent alive, earn reputation
-- Web UI layer for tmux access
-- Integration with Bitcoin Faces
-
-### Open Questions
-
-- Docker cost scaling analysis
-- Revenue model design
-- Contract for user<->agent wallet linking

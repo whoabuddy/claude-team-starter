@@ -1,97 +1,62 @@
-# Team Member Environment
+# Team Development Environment
 
-This is a pre-configured development environment. Claude Code should help users regardless of their technical experience level.
+You are helping a team member who may have limited technical experience. Be patient, explain what you're doing, and fix problems rather than just describing them.
 
-## User Context
+## First Thing: Get Latest Knowledge
 
-This user may have limited technical experience. When helping:
-- Explain what you're doing and why in plain language
-- Don't assume familiarity with command line, git, or programming concepts
-- Offer to do tasks for them rather than giving complex instructions
-- If something fails, explain what went wrong and fix it
-- Proactively check if setup is complete before attempting other tasks
-
-## Environment Status Check
-
-Before starting any development work, verify the environment is properly configured by checking:
+Before starting work, pull the latest shared knowledge:
 
 ```bash
-# Check Claude login
-claude config list | grep primaryEmail
-
-# Check git config
-git config --global user.name && git config --global user.email
-
-# Check SSH key exists
-ls ~/.ssh/id_*.pub
-
-# Check GitHub CLI auth
-gh auth status
+cd ~/dev/whoabuddy/claude-knowledge && git pull
 ```
 
-If any of these fail, help the user run `~/post-setup.sh` or walk them through configuration manually.
+This repo contains patterns, runbooks, and context shared across the team. Check it when you need:
+- Clarity/Stacks patterns: `patterns/clarity-*.md`
+- Development workflows: `runbook/`
+- Project context: `context/`
 
-## Available Tools
+## Environment
 
-### Development
-- **Node.js** via nvm - JavaScript/TypeScript runtime
-- **Bun** - Fast JavaScript runtime and package manager
-- **build-essential** - C/C++ compiler toolchain
-- **cmake** - Build system
+This VM has everything pre-installed:
+- Node.js (latest via nvm), Bun
+- Claude Code CLI
+- GitHub CLI (gh)
+- tmux, git, build tools
 
-### Collaboration
-- **git** - Version control
-- **gh** - GitHub CLI for PRs, issues, etc.
-- **tmux** - Terminal multiplexer
-
-### Deployment
-- **cloudflared** - Cloudflare tunnel for web access
-
-## Quick Aliases
-
-The user has these aliases available:
-- `cc` - Start Claude Code
-- `ccd` - Claude Code with dangerous mode (auto-approve)
-- `ccr` - Resume last Claude session
-- `ta` - Attach to tmux (or create new session)
+### Key Aliases
+- `clauded` - Claude with auto-approve (careful!)
+- `ta` - Attach to tmux
 - `gs`, `gd`, `gl`, `ga`, `gc`, `gp` - Git shortcuts
+
+## Web UI
+
+The web interface runs from `~/dev/whoabuddy/claude-rpg`. If the user wants to access via browser, ensure the service is running and the Cloudflare tunnel is connected.
 
 ## Common Tasks
 
-### "I want to start a new project"
-1. Create directory: `mkdir ~/projects/project-name && cd ~/projects/project-name`
-2. Initialize git: `git init`
-3. Help them scaffold based on project type
+### User says "something's broken"
+1. Check what the error actually is
+2. Explain in plain terms
+3. Fix it
+4. Verify fix worked
 
-### "I want to clone a repository"
-1. Check GitHub auth: `gh auth status`
-2. Clone: `gh repo clone owner/repo ~/projects/repo`
-3. Navigate: `cd ~/projects/repo`
-4. Install deps if needed
+### User wants to work on a project
+1. Check if repo exists locally, clone if not: `gh repo clone owner/repo`
+2. `cd` into it
+3. Check for README, package.json, Clarinet.toml etc.
+4. Help them understand the structure
 
-### "I need to push my changes"
-1. Check remote: `git remote -v`
-2. If no remote, help them create a repo: `gh repo create`
-3. Stage, commit, push: `git add . && git commit -m "message" && git push`
+### User needs to push changes
+1. `git status` to see what changed
+2. `git add .` (or specific files)
+3. `git commit -m "description"`
+4. `git push`
 
-### "Something broke" / Error occurred
-1. Read the error message carefully
-2. Explain what it means in plain terms
-3. Fix it or suggest a fix
-4. Verify the fix worked
+### Environment issues
+Run `~/scripts/verify.sh` or `~/post-setup.sh` to check/fix setup.
 
-## Project-Specific Context
+## Team Context
 
-<!-- Add team-specific context below -->
+These users are active contributors working on Stacks/Clarity projects. They're here to code, not to manage infrastructure. Handle the technical details for them.
 
-### Team Info
-- Team: [Team name - to be configured]
-- Focus: [What the team is building]
-- Main repos: [Key repositories]
-
-### Contacts
-- Admin: [Who to contact for environment issues]
-
----
-
-*This environment is managed by claude-team-starter. If you're the admin, update this file at `~/dev/whoabuddy/claude-team-starter/templates/.claude/CLAUDE.md` and re-run pre-setup for changes to propagate.*
+Focus: Get them productive. Function over form.

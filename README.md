@@ -26,10 +26,10 @@ Replicate a Claude Code development environment for a team of 5.
 
 **pre-setup.sh** installs everything (idempotent, re-run to update):
 - build-essential, cmake, git, tmux, jq, htop
-- nvm + Node.js (latest)
-- Bun
+- nvm + Node.js (latest), Bun
 - Claude Code CLI
-- GitHub CLI
+- GitHub CLI, cloudflared
+- Clones: claude-knowledge, claude-rpg
 - Bash aliases, tmux config
 
 **post-setup.sh** handles credentials only:
@@ -37,6 +37,10 @@ Replicate a Claude Code development environment for a team of 5.
 - Git name/email
 - SSH key generation
 - GitHub CLI authentication
+
+**setup-tunnel.sh** (optional) sets up Cloudflare tunnel:
+- Uses GitHub username as subdomain
+- Exposes claude-rpg web UI (port 4011)
 
 ## Admin Guide
 
@@ -92,15 +96,33 @@ Just ask Claude. Examples:
 - "What's wrong with this error?"
 - "Push my changes"
 
+## Web UI Access
+
+Each user can access their environment via browser using Cloudflare Tunnel.
+
+After completing post-setup, run:
+```bash
+./setup-tunnel.sh
+```
+
+This creates a tunnel with their GitHub username as subdomain (e.g., `alice.yourdomain.com`).
+
+To start the web UI:
+```bash
+cd ~/dev/whoabuddy/claude-rpg
+npm run dev
+```
+
 ## Files
 
 ```
 scripts/
-  pre-setup.sh   ← Admin runs (installs everything)
-  post-setup.sh  ← User runs (account setup)
-  verify.sh      ← Check status
+  pre-setup.sh     ← Admin runs (installs everything)
+  post-setup.sh    ← User runs (account setup)
+  setup-tunnel.sh  ← User runs (cloudflare tunnel)
+  verify.sh        ← Check status
 
 templates/.claude/
-  CLAUDE.md      ← Context for Claude Code
-  settings.json  ← Default settings
+  CLAUDE.md        ← Context for Claude Code
+  settings.json    ← Default settings
 ```

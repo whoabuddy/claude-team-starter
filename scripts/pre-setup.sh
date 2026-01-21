@@ -73,6 +73,18 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Cloudflared (for tunnel access)
+# -----------------------------------------------------------------------------
+if command -v cloudflared &>/dev/null; then
+    log "cloudflared already installed: $(cloudflared --version 2>&1 | head -1)"
+else
+    log "Installing cloudflared..."
+    curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
+    dpkg -i /tmp/cloudflared.deb
+    rm /tmp/cloudflared.deb
+fi
+
+# -----------------------------------------------------------------------------
 # nvm + Node (user-level)
 # -----------------------------------------------------------------------------
 log "Setting up nvm + Node for $TARGET_USER..."
@@ -214,12 +226,36 @@ if [ -d "$TEMPLATE_DIR" ] && [ ! -f "$CLAUDE_DIR/CLAUDE.md" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Copy post-setup to user home
+# Clone shared repos
 # -----------------------------------------------------------------------------
-log "Copying post-setup.sh to $TARGET_HOME..."
+log "Setting up shared repositories for $TARGET_USER..."
+sudo -u "$TARGET_USER" mkdir -p "$TARGET_HOME/dev/whoabuddy"
+
+# Clone claude-knowledge (shared patterns, runbooks, context)
+if [ ! -d "$TARGET_HOME/dev/whoabuddy/claude-knowledge" ]; then
+    log "Cloning claude-knowledge..."
+    sudo -u "$TARGET_USER" git clone https://github.com/whoabuddy/claude-knowledge.git "$TARGET_HOME/dev/whoabuddy/claude-knowledge" 2>/dev/null || warn "Could not clone claude-knowledge (may need auth)"
+else
+    log "claude-knowledge already exists"
+fi
+
+# Clone claude-rpg (web UI)
+if [ ! -d "$TARGET_HOME/dev/whoabuddy/claude-rpg" ]; then
+    log "Cloning claude-rpg..."
+    sudo -u "$TARGET_USER" git clone https://github.com/whoabuddy/claude-rpg.git "$TARGET_HOME/dev/whoabuddy/claude-rpg" 2>/dev/null || warn "Could not clone claude-rpg (may need auth)"
+else
+    log "claude-rpg already exists"
+fi
+
+# -----------------------------------------------------------------------------
+# Copy scripts to user home
+# -----------------------------------------------------------------------------
+log "Copying scripts to $TARGET_HOME..."
 cp "$SCRIPT_DIR/post-setup.sh" "$TARGET_HOME/post-setup.sh"
-chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/post-setup.sh"
-chmod +x "$TARGET_HOME/post-setup.sh"
+cp "$SCRIPT_DIR/setup-tunnel.sh" "$TARGET_HOME/setup-tunnel.sh"
+cp "$SCRIPT_DIR/verify.sh" "$TARGET_HOME/verify.sh"
+chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME"/*.sh
+chmod +x "$TARGET_HOME"/*.sh
 
 # -----------------------------------------------------------------------------
 # Summary
@@ -230,14 +266,20 @@ log "Pre-setup complete for $TARGET_USER"
 log "=========================================="
 echo ""
 echo "Installed:"
-echo "  - build-essential, cmake, git, tmux, jq, gh"
-echo "  - nvm + Node (latest)"
-echo "  - Bun"
+echo "  - build-essential, cmake, git, tmux, jq"
+echo "  - gh (GitHub CLI), cloudflared"
+echo "  - nvm + Node (latest), Bun"
 echo "  - Claude Code CLI"
+echo ""
+echo "Repos cloned to ~/dev/whoabuddy/:"
+echo "  - claude-knowledge (shared patterns)"
+echo "  - claude-rpg (web UI)"
 echo ""
 echo "User needs to run: ~/post-setup.sh"
 echo "  - Log into Claude Code"
 echo "  - Authenticate GitHub CLI"
 echo "  - Set git name/email"
 echo "  - Generate SSH key"
+echo ""
+echo "Optional: ~/setup-tunnel.sh for Cloudflare tunnel"
 echo ""
