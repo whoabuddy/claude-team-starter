@@ -56,12 +56,13 @@ log "GitHub user: $GITHUB_USER"
 # Configuration
 TUNNEL_NAME="${GITHUB_USER}-dev"
 SERVICE_PORT=4011
-SUBDOMAIN="${GITHUB_USER}"
+DOMAIN="team.aibtc.com"
+HOSTNAME="${GITHUB_USER}.${DOMAIN}"
 
 echo ""
 log "This will create a Cloudflare tunnel:"
 echo "  Tunnel name: $TUNNEL_NAME"
-echo "  Subdomain:   $SUBDOMAIN.<your-domain>"
+echo "  Hostname:    $HOSTNAME"
 echo "  Service:     localhost:$SERVICE_PORT (claude-rpg)"
 echo ""
 
@@ -104,7 +105,7 @@ tunnel: $TUNNEL_ID
 credentials-file: $CONFIG_DIR/$TUNNEL_ID.json
 
 ingress:
-  - hostname: $SUBDOMAIN.\${TUNNEL_DOMAIN}
+  - hostname: $HOSTNAME
     service: http://localhost:$SERVICE_PORT
   - service: http_status:404
 EOF
@@ -118,16 +119,15 @@ echo "Next steps:"
 echo ""
 echo "1. Add DNS record in Cloudflare dashboard:"
 echo "   Type: CNAME"
-echo "   Name: $SUBDOMAIN"
+echo "   Name: $GITHUB_USER"
 echo "   Target: $TUNNEL_ID.cfargotunnel.com"
+echo "   (in the $DOMAIN zone)"
 echo ""
-echo "2. Update config with your domain:"
-echo "   Edit: $CONFIG_FILE"
-echo "   Replace \${TUNNEL_DOMAIN} with your domain"
-echo ""
-echo "3. Start the tunnel:"
+echo "2. Start the tunnel:"
 echo "   cloudflared tunnel run $TUNNEL_NAME"
 echo ""
-echo "4. (Optional) Install as service:"
+echo "3. (Optional) Install as service:"
 echo "   sudo cloudflared service install"
+echo ""
+echo "Your URL: https://$HOSTNAME"
 echo ""
