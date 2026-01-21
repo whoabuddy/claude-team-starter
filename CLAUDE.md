@@ -25,6 +25,7 @@ VirtualBox VMs running Ubuntu Server with identical setups.
 
 - build-essential, cmake, git, tmux, jq
 - Node.js (latest via nvm), Bun
+- Rust, Clarinet (Stacks/Clarity development)
 - Claude Code CLI
 - GitHub CLI, cloudflared
 - Clones: claude-knowledge, claude-rpg

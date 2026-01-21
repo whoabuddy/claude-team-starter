@@ -27,6 +27,7 @@ Replicate a Claude Code development environment for a team of 5.
 **pre-setup.sh** installs everything (idempotent, re-run to update):
 - build-essential, cmake, git, tmux, jq, htop
 - nvm + Node.js (latest), Bun
+- Rust, Clarinet (Stacks/Clarity development)
 - Claude Code CLI
 - GitHub CLI, cloudflared
 - Clones: claude-knowledge, claude-rpg

@@ -19,6 +19,7 @@ This repo contains patterns, runbooks, and context shared across the team. Check
 
 This VM has everything pre-installed:
 - Node.js (latest via nvm), Bun
+- Rust, Clarinet (for Stacks/Clarity development)
 - Claude Code CLI
 - GitHub CLI (gh)
 - tmux, git, build tools

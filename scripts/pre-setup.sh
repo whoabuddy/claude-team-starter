@@ -134,6 +134,39 @@ fi
 EOFBUN
 
 # -----------------------------------------------------------------------------
+# Rust (user-level)
+# -----------------------------------------------------------------------------
+log "Setting up Rust for $TARGET_USER..."
+sudo -u "$TARGET_USER" bash << 'EOFRUST'
+set -e
+if command -v rustc &>/dev/null; then
+    echo "  Rust already installed: $(rustc --version)"
+    echo "  Updating..."
+    rustup update 2>/dev/null || true
+else
+    echo "  Installing Rust via rustup..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+fi
+EOFRUST
+
+# -----------------------------------------------------------------------------
+# Clarinet (user-level)
+# -----------------------------------------------------------------------------
+log "Setting up Clarinet for $TARGET_USER..."
+sudo -u "$TARGET_USER" bash << 'EOFCLARINET'
+set -e
+# Source cargo env
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+if command -v clarinet &>/dev/null; then
+    echo "  Clarinet already installed: $(clarinet --version)"
+else
+    echo "  Installing Clarinet..."
+    curl -fsSL https://get.clarinet.dev | sh
+fi
+EOFCLARINET
+
+# -----------------------------------------------------------------------------
 # Claude Code CLI (user-level)
 # -----------------------------------------------------------------------------
 log "Setting up Claude Code for $TARGET_USER..."
@@ -269,6 +302,7 @@ echo "Installed:"
 echo "  - build-essential, cmake, git, tmux, jq"
 echo "  - gh (GitHub CLI), cloudflared"
 echo "  - nvm + Node (latest), Bun"
+echo "  - Rust, Clarinet"
 echo "  - Claude Code CLI"
 echo ""
 echo "Repos cloned to ~/dev/whoabuddy/:"
