@@ -1,55 +1,53 @@
 #!/bin/bash
-# Pre-Setup Script
-# Run this as root/sudo BEFORE the user connects
+# Pre-Setup Script (Idempotent)
+# Run as root to prepare the base image or update an existing install
 # Usage: sudo ./pre-setup.sh <username>
+#
+# Safe to re-run - will update existing installations
 
 set -e
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log() { echo -e "${GREEN}[+]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+err() { echo -e "${RED}[x]${NC} $1"; }
 
-# Check if running as root
+# -----------------------------------------------------------------------------
+# Checks
+# -----------------------------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
-    log_error "Please run as root (sudo ./pre-setup.sh <username>)"
+    err "Run as root: sudo ./pre-setup.sh <username>"
     exit 1
 fi
 
-# Check for username argument
 if [ -z "$1" ]; then
-    log_error "Usage: sudo ./pre-setup.sh <username>"
+    err "Usage: sudo ./pre-setup.sh <username>"
     exit 1
 fi
 
 TARGET_USER="$1"
 TARGET_HOME="/home/$TARGET_USER"
 
-# Verify user exists
 if ! id "$TARGET_USER" &>/dev/null; then
-    log_info "Creating user: $TARGET_USER"
+    log "Creating user: $TARGET_USER"
     adduser --gecos "" "$TARGET_USER"
     usermod -aG sudo "$TARGET_USER"
 else
-    log_info "User $TARGET_USER already exists"
+    log "User $TARGET_USER exists"
 fi
 
-log_info "Starting pre-setup for user: $TARGET_USER"
+# -----------------------------------------------------------------------------
+# System packages
+# -----------------------------------------------------------------------------
+log "Updating apt cache..."
+apt-get update -qq
 
-# =============================================================================
-# SYSTEM PACKAGES
-# =============================================================================
-log_info "Updating system packages..."
-apt-get update
-apt-get upgrade -y
-
-log_info "Installing build essentials..."
-apt-get install -y \
+log "Installing/updating system packages..."
+apt-get install -y -qq \
     build-essential \
     cmake \
     git \
@@ -61,171 +59,185 @@ apt-get install -y \
     jq \
     tree
 
-# =============================================================================
-# CLOUDFLARED
-# =============================================================================
-log_info "Installing cloudflared..."
-if ! command -v cloudflared &> /dev/null; then
-    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    dpkg -i cloudflared.deb
-    rm cloudflared.deb
+# -----------------------------------------------------------------------------
+# GitHub CLI
+# -----------------------------------------------------------------------------
+if command -v gh &>/dev/null; then
+    log "GitHub CLI already installed: $(gh --version | head -1)"
 else
-    log_info "cloudflared already installed"
+    log "Installing GitHub CLI..."
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+    apt-get update -qq
+    apt-get install -y -qq gh
 fi
 
-# =============================================================================
-# NVM + NODE (installed for user, not root)
-# =============================================================================
-log_info "Installing nvm for $TARGET_USER..."
+# -----------------------------------------------------------------------------
+# nvm + Node (user-level)
+# -----------------------------------------------------------------------------
+log "Setting up nvm + Node for $TARGET_USER..."
 sudo -u "$TARGET_USER" bash << 'EOFNVM'
+set -e
 export HOME="$HOME"
+
+# Install or update nvm
 if [ ! -d "$HOME/.nvm" ]; then
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    nvm install --lts
-    nvm use --lts
+    echo "  Installing nvm..."
+    curl -so- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+else
+    echo "  nvm already installed"
+fi
+
+# Load nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Install latest node (not LTS)
+CURRENT=$(node --version 2>/dev/null || echo "none")
+LATEST=$(nvm version-remote node)
+
+if [ "$CURRENT" != "$LATEST" ]; then
+    echo "  Installing Node $LATEST (current: $CURRENT)..."
+    nvm install node
     nvm alias default node
 else
-    echo "nvm already installed"
+    echo "  Node $CURRENT is latest"
 fi
 EOFNVM
 
-# =============================================================================
-# BUN
-# =============================================================================
-log_info "Installing bun for $TARGET_USER..."
+# -----------------------------------------------------------------------------
+# Bun (user-level)
+# -----------------------------------------------------------------------------
+log "Setting up Bun for $TARGET_USER..."
 sudo -u "$TARGET_USER" bash << 'EOFBUN'
-if ! command -v bun &> /dev/null; then
-    curl -fsSL https://bun.sh/install | bash
+set -e
+if command -v bun &>/dev/null; then
+    echo "  Bun already installed: $(bun --version)"
+    echo "  Updating bun..."
+    bun upgrade 2>/dev/null || true
 else
-    echo "bun already installed"
+    echo "  Installing bun..."
+    curl -fsSL https://bun.sh/install | bash
 fi
 EOFBUN
 
-# =============================================================================
-# CLAUDE CODE CLI
-# =============================================================================
-log_info "Installing Claude Code CLI for $TARGET_USER..."
+# -----------------------------------------------------------------------------
+# Claude Code CLI (user-level)
+# -----------------------------------------------------------------------------
+log "Setting up Claude Code for $TARGET_USER..."
 sudo -u "$TARGET_USER" bash << 'EOFCLAUDE'
+set -e
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-if ! command -v claude &> /dev/null; then
-    npm install -g @anthropic-ai/claude-code
+
+if command -v claude &>/dev/null; then
+    echo "  Claude Code already installed: $(claude --version 2>/dev/null)"
+    echo "  Updating..."
+    npm update -g @anthropic-ai/claude-code 2>/dev/null || true
 else
-    echo "Claude Code already installed"
+    echo "  Installing Claude Code..."
+    npm install -g @anthropic-ai/claude-code
 fi
 EOFCLAUDE
 
-# =============================================================================
-# BASH ALIASES
-# =============================================================================
-log_info "Setting up bash aliases..."
-sudo -u "$TARGET_USER" bash << 'EOFBASH'
-ALIAS_FILE="$HOME/.bash_aliases"
+# -----------------------------------------------------------------------------
+# Git defaults
+# -----------------------------------------------------------------------------
+log "Setting git defaults for $TARGET_USER..."
+sudo -u "$TARGET_USER" git config --global init.defaultBranch main
+sudo -u "$TARGET_USER" git config --global pull.rebase true
 
-# Create or append to bash_aliases
-cat >> "$ALIAS_FILE" << 'ALIASES'
-# Claude Code aliases
-alias cc='claude'
-alias ccd='claude --dangerously-skip-permissions'
-alias ccr='claude --resume'
+# -----------------------------------------------------------------------------
+# Bash aliases
+# -----------------------------------------------------------------------------
+log "Setting up bash aliases for $TARGET_USER..."
+ALIAS_FILE="$TARGET_HOME/.bash_aliases"
 
-# Git shortcuts
+# Create or update aliases (idempotent via marker)
+if ! grep -q "# CLAUDE-TEAM-STARTER" "$ALIAS_FILE" 2>/dev/null; then
+    sudo -u "$TARGET_USER" bash -c "cat >> '$ALIAS_FILE'" << 'ALIASES'
+
+# CLAUDE-TEAM-STARTER
+alias clauded='claude --dangerously-skip-permissions'
 alias gs='git status'
 alias gd='git diff'
 alias gl='git log --oneline -20'
 alias gp='git push'
 alias ga='git add'
 alias gc='git commit'
-
-# Tmux
 alias ta='tmux attach || tmux new -s main'
-alias tl='tmux list-sessions'
-
-# System
 alias ll='ls -lah'
-alias ..='cd ..'
-alias ...='cd ../..'
+# END CLAUDE-TEAM-STARTER
 ALIASES
-
-# Source in bashrc if not already
-if ! grep -q "bash_aliases" "$HOME/.bashrc" 2>/dev/null; then
-    echo '[ -f ~/.bash_aliases ] && . ~/.bash_aliases' >> "$HOME/.bashrc"
+    log "Aliases added"
+else
+    log "Aliases already configured"
 fi
-EOFBASH
 
-# =============================================================================
-# TMUX CONFIG
-# =============================================================================
-log_info "Setting up tmux config..."
-sudo -u "$TARGET_USER" bash << 'EOFTMUX'
-cat > "$HOME/.tmux.conf" << 'TMUXCONF'
-# Improve colors
+# Ensure .bash_aliases is sourced
+if ! grep -q "bash_aliases" "$TARGET_HOME/.bashrc" 2>/dev/null; then
+    echo '[ -f ~/.bash_aliases ] && . ~/.bash_aliases' >> "$TARGET_HOME/.bashrc"
+fi
+
+# -----------------------------------------------------------------------------
+# Tmux config
+# -----------------------------------------------------------------------------
+log "Setting up tmux config for $TARGET_USER..."
+TMUX_CONF="$TARGET_HOME/.tmux.conf"
+if [ ! -f "$TMUX_CONF" ]; then
+    sudo -u "$TARGET_USER" bash -c "cat > '$TMUX_CONF'" << 'TMUXCONF'
 set -g default-terminal "screen-256color"
-
-# Increase scrollback
 set -g history-limit 50000
-
-# Start window numbering at 1
 set -g base-index 1
 setw -g pane-base-index 1
-
-# Enable mouse
 set -g mouse on
-
-# Easier splits
 bind | split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
-
-# Status bar
-set -g status-style bg=black,fg=white
-set -g status-left '[#S] '
-set -g status-right '%Y-%m-%d %H:%M'
 TMUXCONF
-EOFTMUX
+fi
 
-# =============================================================================
-# .CLAUDE DIRECTORY SETUP
-# =============================================================================
-log_info "Setting up .claude directory..."
+# -----------------------------------------------------------------------------
+# .claude directory
+# -----------------------------------------------------------------------------
+log "Setting up .claude directory for $TARGET_USER..."
 CLAUDE_DIR="$TARGET_HOME/.claude"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(dirname "$SCRIPT_DIR")/templates/.claude"
 
 sudo -u "$TARGET_USER" mkdir -p "$CLAUDE_DIR"
 
-# Copy template files if they exist
-if [ -d "$TEMPLATE_DIR" ]; then
-    cp -r "$TEMPLATE_DIR"/* "$CLAUDE_DIR"/ 2>/dev/null || true
+# Copy template if exists and CLAUDE.md not already present
+if [ -d "$TEMPLATE_DIR" ] && [ ! -f "$CLAUDE_DIR/CLAUDE.md" ]; then
+    cp "$TEMPLATE_DIR"/* "$CLAUDE_DIR"/ 2>/dev/null || true
     chown -R "$TARGET_USER:$TARGET_USER" "$CLAUDE_DIR"
+    log "Copied .claude template"
 fi
 
-# =============================================================================
-# GIT CONFIG (basic, user will customize)
-# =============================================================================
-log_info "Setting up basic git config..."
-sudo -u "$TARGET_USER" git config --global init.defaultBranch main
-sudo -u "$TARGET_USER" git config --global pull.rebase true
+# -----------------------------------------------------------------------------
+# Copy post-setup to user home
+# -----------------------------------------------------------------------------
+log "Copying post-setup.sh to $TARGET_HOME..."
+cp "$SCRIPT_DIR/post-setup.sh" "$TARGET_HOME/post-setup.sh"
+chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/post-setup.sh"
+chmod +x "$TARGET_HOME/post-setup.sh"
 
-# =============================================================================
-# SUMMARY
-# =============================================================================
-log_info "============================================"
-log_info "Pre-setup complete for $TARGET_USER!"
-log_info "============================================"
-log_info ""
-log_info "Installed:"
-log_info "  - build-essential, cmake, git, tmux, jq, etc."
-log_info "  - cloudflared"
-log_info "  - nvm + Node.js LTS"
-log_info "  - bun"
-log_info "  - Claude Code CLI"
-log_info ""
-log_info "User still needs to configure:"
-log_info "  1. Log into Claude Code (claude login)"
-log_info "  2. Set up Cloudflare tunnel token"
-log_info "  3. Configure git name/email"
-log_info "  4. Add SSH key to GitHub"
-log_info ""
-log_info "User can run: ~/post-setup.sh for guided configuration"
+# -----------------------------------------------------------------------------
+# Summary
+# -----------------------------------------------------------------------------
+echo ""
+log "=========================================="
+log "Pre-setup complete for $TARGET_USER"
+log "=========================================="
+echo ""
+echo "Installed:"
+echo "  - build-essential, cmake, git, tmux, jq, gh"
+echo "  - nvm + Node (latest)"
+echo "  - Bun"
+echo "  - Claude Code CLI"
+echo ""
+echo "User needs to run: ~/post-setup.sh"
+echo "  - Log into Claude Code"
+echo "  - Authenticate GitHub CLI"
+echo "  - Set git name/email"
+echo "  - Generate SSH key"
+echo ""
