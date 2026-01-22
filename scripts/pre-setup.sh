@@ -150,19 +150,36 @@ fi
 EOFRUST
 
 # -----------------------------------------------------------------------------
-# Clarinet (user-level)
+# Clarinet (user-level) - from stx-labs/clarinet releases
 # -----------------------------------------------------------------------------
 log "Setting up Clarinet for $TARGET_USER..."
 sudo -u "$TARGET_USER" bash << 'EOFCLARINET'
 set -e
-# Source cargo env
-[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+CLARINET_BIN="$HOME/.local/bin/clarinet"
+mkdir -p "$HOME/.local/bin"
 
 if command -v clarinet &>/dev/null; then
     echo "  Clarinet already installed: $(clarinet --version)"
+    echo "  To update, run: ~/update-clarinet.sh"
 else
-    echo "  Installing Clarinet..."
-    curl -fsSL https://get.clarinet.dev | sh
+    echo "  Installing Clarinet from GitHub releases..."
+    # Get latest release tag
+    LATEST=$(curl -fsSL https://api.github.com/repos/stx-labs/clarinet/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+    echo "  Latest version: $LATEST"
+
+    # Download and extract
+    curl -fsSL "https://github.com/stx-labs/clarinet/releases/download/${LATEST}/clarinet-linux-x64-glibc.tar.gz" -o /tmp/clarinet.tar.gz
+    tar -xzf /tmp/clarinet.tar.gz -C "$HOME/.local/bin"
+    rm /tmp/clarinet.tar.gz
+    chmod +x "$CLARINET_BIN"
+
+    echo "  Installed: $($CLARINET_BIN --version)"
+fi
+
+# Ensure ~/.local/bin is in PATH
+if ! grep -q '.local/bin' "$HOME/.bashrc"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
 fi
 EOFCLARINET
 
@@ -287,6 +304,7 @@ log "Copying scripts to $TARGET_HOME..."
 cp "$SCRIPT_DIR/post-setup.sh" "$TARGET_HOME/post-setup.sh"
 cp "$SCRIPT_DIR/setup-tunnel.sh" "$TARGET_HOME/setup-tunnel.sh"
 cp "$SCRIPT_DIR/verify.sh" "$TARGET_HOME/verify.sh"
+cp "$SCRIPT_DIR/update-clarinet.sh" "$TARGET_HOME/update-clarinet.sh"
 chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME"/*.sh
 chmod +x "$TARGET_HOME"/*.sh
 
