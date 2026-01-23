@@ -60,10 +60,16 @@ Reference when needed:
 
 ## Web Interface
 
-The web UI runs at `~/dev/whoabuddy/claude-rpg` via systemd service `claude-rpg`.
-- Check status: `systemctl status claude-rpg`
-- Restart: `sudo systemctl restart claude-rpg`
-- Logs: `journalctl -u claude-rpg -f`
+The web UI runs via two systemd services:
+- `claude-rpg-client` - Vite dev server on port 4010 (HTTPS + proxy)
+- `claude-rpg-server` - API server on port 4011
+
+Commands:
+```bash
+sudo systemctl status claude-rpg-server claude-rpg-client
+sudo systemctl restart claude-rpg-client
+sudo journalctl -u claude-rpg-client -f
+```
 
 Cloudflare tunnel (`cloudflared` service) provides external HTTPS access.
 

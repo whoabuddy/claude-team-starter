@@ -41,7 +41,7 @@ Replicate a Claude Code development environment for a team of 5.
 
 **setup-tunnel.sh** (optional) sets up Cloudflare tunnel:
 - Uses GitHub username as subdomain
-- Exposes claude-rpg web UI (port 4011)
+- Exposes claude-rpg web UI (port 4010)
 
 ## Admin Guide
 
@@ -101,18 +101,16 @@ Just ask Claude. Examples:
 
 Each user can access their environment via browser using Cloudflare Tunnel.
 
-After completing post-setup, run:
+The web UI runs automatically via systemd:
+- `claude-rpg-client` - Vite dev server on port 4010 (HTTPS)
+- `claude-rpg-server` - API server on port 4011
+
+Check status:
 ```bash
-./setup-tunnel.sh
+sudo systemctl status claude-rpg-server claude-rpg-client
 ```
 
-This creates a tunnel with their GitHub username as subdomain (e.g., `alice.yourdomain.com`).
-
-To start the web UI:
-```bash
-cd ~/dev/whoabuddy/claude-rpg
-npm run dev
-```
+Cloudflare tunnel (`cloudflared` service) provides external HTTPS access at `username.team.aibtc.com`.
 
 ## Files
 
