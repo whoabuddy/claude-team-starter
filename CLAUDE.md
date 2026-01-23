@@ -37,6 +37,26 @@ VirtualBox VMs running Ubuntu Server with identical setups.
 - SSH key
 - GitHub CLI auth
 
+### claude-rpg Services
+
+Two systemd services run the web interface:
+
+- `claude-rpg-server` - API server on port 4011
+- `claude-rpg-client` - Vite dev server on port 4010 (HTTPS + proxy)
+
+The client uses vite dev server which provides:
+- HTTPS with auto-generated certs (required for microphone access)
+- Proxy for `/api` and `/ws` routes to the server on :4011
+
+Cloudflare tunnel config must use `https://localhost:4010` with **No TLS Verify** enabled (self-signed cert).
+
+**Commands:**
+```bash
+sudo systemctl status claude-rpg-server claude-rpg-client
+sudo systemctl restart claude-rpg-client
+sudo journalctl -u claude-rpg-client -f
+```
+
 ## Phase 2: Scale + Wallet Integration (Future)
 
 - Docker-based deployment

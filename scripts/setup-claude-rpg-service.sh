@@ -46,16 +46,17 @@ chmod +x "$TARGET_HOME/start-claude-rpg-server.sh"
 chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/start-claude-rpg-server.sh"
 
 # Create client start script
+# Uses vite dev server (HTTPS + proxy for /api and /ws to server)
 cat > "$TARGET_HOME/start-claude-rpg-client.sh" << 'STARTSCRIPT'
 #!/bin/bash
-# Start claude-rpg web client (port 4010)
+# Start claude-rpg web client (port 4010, HTTPS with proxy)
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
 RPG_DIR="$HOME/dev/whoabuddy/claude-rpg"
 cd "$RPG_DIR"
-exec npx vite preview --port 4010 --host
+exec npx vite --port 4010 --host
 STARTSCRIPT
 
 chmod +x "$TARGET_HOME/start-claude-rpg-client.sh"

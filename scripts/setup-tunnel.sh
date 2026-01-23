@@ -106,7 +106,9 @@ credentials-file: $CONFIG_DIR/$TUNNEL_ID.json
 
 ingress:
   - hostname: $HOSTNAME
-    service: http://localhost:$SERVICE_PORT
+    service: https://localhost:$SERVICE_PORT
+    originRequest:
+      noTLSVerify: true
   - service: http_status:404
 EOF
 
