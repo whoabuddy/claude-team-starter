@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup claude-rpg as a systemd service with tmux session
+# Setup claude-rpg client + server as systemd services
 # Run as: sudo ./setup-claude-rpg-service.sh <username>
 
 set -e
@@ -18,36 +18,53 @@ TARGET_USER="$1"
 TARGET_HOME="/home/$TARGET_USER"
 RPG_DIR="$TARGET_HOME/dev/whoabuddy/claude-rpg"
 
-echo "[+] Setting up claude-rpg service for $TARGET_USER"
+echo "[+] Setting up claude-rpg services for $TARGET_USER"
 
-# Create the start script
-cat > "$TARGET_HOME/start-claude-rpg.sh" << 'STARTSCRIPT'
+# Detect node version installed via nvm
+NODE_VERSION=$(ls "$TARGET_HOME/.nvm/versions/node/" 2>/dev/null | sort -V | tail -1)
+if [ -z "$NODE_VERSION" ]; then
+    echo "[x] No node version found in $TARGET_HOME/.nvm/versions/node/"
+    exit 1
+fi
+echo "[+] Detected node version: $NODE_VERSION"
+NODE_PATH="$TARGET_HOME/.nvm/versions/node/$NODE_VERSION/bin"
+
+# Create server start script
+cat > "$TARGET_HOME/start-claude-rpg-server.sh" << 'STARTSCRIPT'
 #!/bin/bash
-# Start claude-rpg server in tmux session
+# Start claude-rpg API server (port 4011)
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-SESSION="main"
 RPG_DIR="$HOME/dev/whoabuddy/claude-rpg"
-
-# Create tmux session if it doesn't exist
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-    tmux new-session -d -s "$SESSION" -c "$HOME"
-fi
-
-# Start the server in background (not in tmux, just as a process)
 cd "$RPG_DIR"
 exec node dist/server/server/index.js
 STARTSCRIPT
 
-chmod +x "$TARGET_HOME/start-claude-rpg.sh"
-chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/start-claude-rpg.sh"
+chmod +x "$TARGET_HOME/start-claude-rpg-server.sh"
+chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/start-claude-rpg-server.sh"
 
-# Create systemd service
-cat > /etc/systemd/system/claude-rpg.service << EOF
+# Create client start script
+cat > "$TARGET_HOME/start-claude-rpg-client.sh" << 'STARTSCRIPT'
+#!/bin/bash
+# Start claude-rpg web client (port 4010)
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+RPG_DIR="$HOME/dev/whoabuddy/claude-rpg"
+cd "$RPG_DIR"
+exec npx vite preview --port 4010 --host
+STARTSCRIPT
+
+chmod +x "$TARGET_HOME/start-claude-rpg-client.sh"
+chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/start-claude-rpg-client.sh"
+
+# Create server systemd service (port 4011)
+cat > /etc/systemd/system/claude-rpg-server.service << EOF
 [Unit]
-Description=Claude RPG Web Interface
+Description=Claude RPG API Server (port 4011)
 After=network.target
 
 [Service]
@@ -57,8 +74,8 @@ Group=$TARGET_USER
 WorkingDirectory=$RPG_DIR
 Environment="HOME=$TARGET_HOME"
 Environment="NVM_DIR=$TARGET_HOME/.nvm"
-Environment="PATH=$TARGET_HOME/.nvm/versions/node/v25.4.0/bin:$TARGET_HOME/.local/bin:$TARGET_HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=$TARGET_HOME/start-claude-rpg.sh
+Environment="PATH=$NODE_PATH:$TARGET_HOME/.local/bin:$TARGET_HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=$TARGET_HOME/start-claude-rpg-server.sh
 Restart=on-failure
 RestartSec=5
 
@@ -66,7 +83,29 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Create tmux session service (separate, always running)
+# Create client systemd service (port 4010)
+cat > /etc/systemd/system/claude-rpg-client.service << EOF
+[Unit]
+Description=Claude RPG Web Client (port 4010)
+After=network.target claude-rpg-server.service
+
+[Service]
+Type=simple
+User=$TARGET_USER
+Group=$TARGET_USER
+WorkingDirectory=$RPG_DIR
+Environment="HOME=$TARGET_HOME"
+Environment="NVM_DIR=$TARGET_HOME/.nvm"
+Environment="PATH=$NODE_PATH:$TARGET_HOME/.local/bin:$TARGET_HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=$TARGET_HOME/start-claude-rpg-client.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Create tmux session service (for user convenience)
 cat > /etc/systemd/system/claude-tmux.service << EOF
 [Unit]
 Description=Claude Tmux Session
@@ -86,18 +125,30 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+# Remove old claude-rpg.service if it exists
+if [ -f /etc/systemd/system/claude-rpg.service ]; then
+    echo "[+] Removing old claude-rpg.service"
+    systemctl stop claude-rpg.service 2>/dev/null || true
+    systemctl disable claude-rpg.service 2>/dev/null || true
+    rm /etc/systemd/system/claude-rpg.service
+fi
+
 # Reload and enable services
 systemctl daemon-reload
 systemctl enable claude-tmux.service
-systemctl enable claude-rpg.service
+systemctl enable claude-rpg-server.service
+systemctl enable claude-rpg-client.service
 
 echo "[+] Services created and enabled"
 echo ""
 echo "To start now:"
 echo "  sudo systemctl start claude-tmux"
-echo "  sudo systemctl start claude-rpg"
+echo "  sudo systemctl start claude-rpg-server"
+echo "  sudo systemctl start claude-rpg-client"
 echo ""
 echo "To check status:"
-echo "  sudo systemctl status claude-rpg"
+echo "  sudo systemctl status claude-rpg-server claude-rpg-client"
 echo ""
-echo "Web UI will be available at: http://<hostname>:4011"
+echo "Ports:"
+echo "  Client (Web UI): http://localhost:4010"
+echo "  Server (API):    http://localhost:4011"
