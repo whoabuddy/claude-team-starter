@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup Cloudflare Tunnel for Web UI Access
 # Creates a tunnel with subdomain = GitHub username
-# Exposes claude-rpg web UI (port 4011)
+# Exposes claude-rpg web UI (port 4010)
 
 set -e
 
@@ -55,7 +55,7 @@ log "GitHub user: $GITHUB_USER"
 
 # Configuration
 TUNNEL_NAME="${GITHUB_USER}-dev"
-SERVICE_PORT=4011
+SERVICE_PORT=4010
 DOMAIN="team.aibtc.com"
 HOSTNAME="${GITHUB_USER}.${DOMAIN}"
 

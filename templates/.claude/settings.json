@@ -4,7 +4,21 @@
     "autoUpdaterStatus": "disabled"
   },
   "permissions": {
-    "allow": [],
-    "deny": []
+    "allow": [
+      "Bash(~/verify.sh)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(clarinet:*)",
+      "Read(**)",
+      "Glob(**)",
+      "Grep(**)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)"
+    ]
   }
 }
