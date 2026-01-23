@@ -45,6 +45,16 @@ STARTSCRIPT
 chmod +x "$TARGET_HOME/start-claude-rpg-server.sh"
 chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/start-claude-rpg-server.sh"
 
+# Generate HTTPS certs for vite (if not present)
+CERTS_DIR="$TARGET_HOME/.claude-rpg/certs"
+if [ ! -f "$CERTS_DIR/cert.pem" ]; then
+    echo "[+] Generating HTTPS certificates"
+    mkdir -p "$CERTS_DIR"
+    openssl req -x509 -newkey rsa:2048 -keyout "$CERTS_DIR/key.pem" -out "$CERTS_DIR/cert.pem" \
+        -days 365 -nodes -subj '/CN=localhost' 2>/dev/null
+    chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.claude-rpg"
+fi
+
 # Create client start script
 # Uses vite dev server (HTTPS + proxy for /api and /ws to server)
 cat > "$TARGET_HOME/start-claude-rpg-client.sh" << 'STARTSCRIPT'

@@ -45,10 +45,12 @@ Two systemd services run the web interface:
 - `claude-rpg-client` - Vite dev server on port 4010 (HTTPS + proxy)
 
 The client uses vite dev server which provides:
-- HTTPS with auto-generated certs (required for microphone access)
+- HTTPS with OpenSSL certs in `~/.claude-rpg/certs/` (required for microphone access)
 - Proxy for `/api` and `/ws` routes to the server on :4011
 
-Cloudflare tunnel config must use `https://localhost:4010` with **No TLS Verify** enabled (self-signed cert).
+Cloudflare tunnel config must use `https://localhost:4010` with **No TLS Verify** enabled.
+
+**Note:** Vite's auto-generated certs don't work with cloudflared. The setup script generates proper OpenSSL certs automatically.
 
 **Commands:**
 ```bash
