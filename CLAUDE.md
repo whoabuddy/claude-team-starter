@@ -37,6 +37,19 @@ VirtualBox VMs running Ubuntu Server with identical setups.
 - SSH key
 - GitHub CLI auth
 
+### Team VMs
+
+Configured in `/etc/hosts` on the host machine:
+
+| Hostname | IP |
+|----------|-----|
+| aibtc-team-publius | 192.168.1.11 |
+| aibtc-team-cedar | 192.168.1.12 |
+| aibtc-team-biwas | 192.168.1.13 |
+| aibtc-team-cca | 192.168.1.14 |
+
+SSH access: `ssh dev@<hostname>`
+
 ### claude-rpg Services
 
 Two systemd services run the web interface:
